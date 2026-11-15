@@ -243,3 +243,4 @@ body:has(.sheet-back) #inst, body:has(.viewer) #inst, body:has(.composer) #inst,
 .chip-s.ok { color: var(--ok); border-color: rgba(61, 220, 151, .4); } .chip-s.warn { color: var(--warn); border-color: rgba(255, 182, 72, .45); }
 .chip-s.bad { color: var(--bad); border-color: rgba(255, 93, 108, .45); } .chip-s.info { color: var(--gold2); border-color: var(--line2); }
 .list-btn small { font-weight: 400; }
+.news { border-color: var(--line2); margin-bottom: 12px; } .news ul { margin: 8px 0 12px; padding-left: 18px; color: var(--mu); font-size: 13.5px; } .news li { margin: 5px 0; } .news li b { color: var(--tx); }

@@ -34,3 +34,6 @@ L'utilisateur parle français et n'est pas développeur : réponses courtes, en 
   le rapport (`workflow_dispatch` de guardian.yml), publier une modification refusée par GitHub (événement `bloque` avec
   `branch` → `POST /merges`), revenir à la version précédente (action `retour arriere`, si `state.lastPublication.prev`).
   Actions sensibles = bouton à deux appuis (`confirmBtn`).
+- Publication (accord du propriétaire, 15/11) : dès qu'une modification de cette appli est testée, la pousser directement
+  sur `main` (= en ligne), sans attendre un « publie ». À chaque publication visible : changer `APP_VERSION` et `APP_NEWS`
+  (carte « Nouveau dans l'appli » de l'accueil) et `CACHE` dans `sw.js`. Le jeu, lui, passe toujours par le Guardian.

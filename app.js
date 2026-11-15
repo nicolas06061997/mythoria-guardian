@@ -85,6 +85,23 @@ function dayLabel(iso) {
 const plural = (n, s, p = s + 's') => `${n} ${n > 1 ? p : s}`;
 const store = { get(k, d) { try { const v = localStorage.getItem('guardian_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem('guardian_' + k, JSON.stringify(v)); } catch (e) {} } };
 
+// ---------- nouveautés de l'appli (affichées une fois sur l'accueil après chaque mise à jour) ----------
+// À chaque publication : changer APP_VERSION et la liste (3 à 5 lignes, où regarder dans l'appli).
+const APP_VERSION = '15/11 · n°3';
+const APP_NEWS = [
+  ['Accueil', 'le bouton « Commander » lance un contrôle, publie une modification en attente ou revient à la version précédente.'],
+  ['Discuter', 'nouvelle liste « Travaux » : ce que les agents proposent, avec les boutons Oui / Non et l’avancement de chaque travail.'],
+  ['Problèmes', 'quand un contrôle échoue, la photo de l’écran au moment de l’échec s’affiche sous le problème.'],
+  ['Contrôle', 'de nouveaux onglets (Fold plié, très petit écran, téléphone couché, bots) apparaîtront dès que les 6 bots seront publiés dans le jeu.'],
+  ['En coulisses', 'un Watchdog vérifie toutes les 15 minutes que le Guardian est vivant et te prévient sinon.'],
+];
+function newsCard() {
+  if (store.get('seenVersion', '') === APP_VERSION) return null;
+  return h('div', { class: 'card news' }, h('b', {}, '✨ Nouveau dans l’appli (' + APP_VERSION + ')'),
+    h('ul', {}, APP_NEWS.map(([ou, quoi]) => h('li', {}, h('b', {}, ou + ' : '), quoi))),
+    h('button', { class: 'btn full', onclick: () => { store.set('seenVersion', APP_VERSION); render(); } }, 'J’ai vu'));
+}
+
 // ---------- données ----------
 const S = { chat: null, chatErr: null, sending: false, me: null, tab: store.get('tab', 'accueil'), dev: 'telephone', quiet: store.get('quiet', false), data: null, offline: false, loading: false, live: null, report: null, error: null, at: 0 };
 
@@ -320,7 +337,7 @@ function statusCard(st) {
 
 function screenHome() {
   const D = S.data, st = D && D.state;
-  const kids = [statusCard(st)];
+  const kids = [newsCard(), statusCard(st)];
   if (!standalone()) kids.unshift(h('button', { class: 'inst-card', onclick: install }, h('span', { class: 'inst-ic', html: I.dl }), h('span', {}, h('b', {}, installEvt ? 'Installer l’application (1 appui)' : 'Installer l’application'), h('small', {}, 'Elle s’ouvrira en plein écran depuis ton écran d’accueil, comme tes autres applis.'))));
   if (st) {
     const c = st.counters || {}, open = D.problems.filter(p => p.status === 'ouvert' && p.level === 'bloquant').length;
@@ -576,7 +593,7 @@ function openSettings() {
     h('div', { class: 'actions' }, h('a', { class: 'btn', href: GAME, target: '_blank', rel: 'noopener' }, ic('play'), 'Le jeu'), h('a', { class: 'btn', href: ACTIONS, target: '_blank', rel: 'noopener' }, ic('ext'), 'GitHub')),
     h('h3', { style: 'margin-top:20px' }, 'Ce que fait le Guardian aujourd’hui'),
     h('p', {}, 'Actif : contrôle complet du jeu toutes les heures (téléphone + ordinateur), publication protégée, retour arrière automatique, historique, rapport quotidien, notifications. 6 bots de contrôle (couleurs, lisibilité, performances, équilibrage, anti-triche, écrans extrêmes) et un Watchdog qui surveille le Guardian. Agents Claude (chef, réparateur, graphiste, équilibreur) : ils enchaînent les travaux que tu acceptes dans l’onglet Discuter, un passage par heure et une grande session chaque nuit. Tout est gratuit : GitHub (dépôt public) et ntfy ; les agents Claude utilisent ton abonnement Max existant.'),
-    h('p', { class: 'note' }, `Données : ${DATA.replace('https://', '')} · mises à jour ${S.at ? rel(new Date(S.at).toISOString()) : '—'}`));
+    h('p', { class: 'note' }, `Version de l’appli : ${APP_VERSION} · Données : ${DATA.replace('https://', '')} · mises à jour ${S.at ? rel(new Date(S.at).toISOString()) : '—'}`));
 }
 
 // ---------- installation ----------
