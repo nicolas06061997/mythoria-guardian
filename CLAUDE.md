@@ -16,3 +16,8 @@ L'utilisateur parle français et n'est pas développeur : réponses courtes, en 
 - Installation comme les autres jeux : pastille verte `#inst` + carte `.inst-card` (`beforeinstallprompt` = 1 appui,
   sinon explications selon le navigateur).
 - Test : `python3 -m http.server 8000` puis http://localhost:8000/ (données réelles) ou `?data=<dossier>/`.
+- Onglet « Discuter » : issue #1 de `mythoria-game` (lecture API publique ; écriture avec la clé GitHub de l'utilisateur,
+  fine-grained « Issues : Read and write », gardée en localStorage `guardian_token` sur son téléphone). Messages des agents =
+  marqueur `<!-- guardian agent=… type=… -->` (règlement : `guardian/AGENTS.md` de mythoria-game) ; demandes `D-AAAAMMJJ-n`
+  avec boutons Oui/Non ; « réponses immédiates » calculées depuis les données (sans IA, signalées comme telles).
+- Ne jamais redessiner pendant la saisie (`render()` attend le `blur` de `.chat-in`).

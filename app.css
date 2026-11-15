@@ -181,10 +181,44 @@ h2 .count { background: var(--card2); color: var(--tx); border-radius: 999px; pa
   border-radius: 999px; padding: 7px 7px 7px 16px; box-shadow: 0 4px 0 #0c5a25, 0 0 18px rgba(118, 255, 154, .5); font-weight: 900; font-size: 15px; white-space: nowrap; animation: enter .4s; }
 #inst.on { display: flex; } #inst span { cursor: pointer; }
 #inst button { border: 0; background: rgba(0, 0, 0, .18); color: #04260f; border-radius: 50%; width: 28px; height: 28px; font-size: 13px; font-weight: 900; }
-body:has(.sheet-back) #inst, body:has(.viewer) #inst { display: none; }
+body:has(.sheet-back) #inst, body:has(.viewer) #inst, body:has(.composer) #inst, body:has(.chat) #inst { display: none; }
 .inst-card { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; margin-bottom: 12px; padding: 12px 14px; border-radius: 16px; border: 1px solid rgba(118, 255, 154, .45);
   background: linear-gradient(180deg, rgba(61, 220, 151, .16), rgba(61, 220, 151, .06)); color: var(--tx); }
 .inst-card .inst-ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex: none; background: linear-gradient(#69f08f, #1f9e48); color: #04260f; }
 .inst-card .inst-ic svg { width: 22px; height: 22px; }
 .inst-card b { display: block; font-size: 15px; } .inst-card small { display: block; color: var(--mu); font-size: 12.5px; margin-top: 2px; }
 .toast { position: fixed; left: 50%; top: calc(var(--safe-t) + 70px); transform: translateX(-50%); z-index: 60; background: #17225c; border: 1px solid var(--line2); padding: 10px 16px; border-radius: 12px; box-shadow: var(--sh); font-size: 14px; max-width: 90vw; text-align: center; animation: enter .25s; }
+
+/* discussion */
+.chat-info { display: flex; gap: 12px; align-items: flex-start; }
+.chat-info svg { width: 26px; height: 26px; color: var(--gold); flex: none; margin-top: 2px; }
+.chat-info b { display: block; font-size: 14.5px; } .chat-info small { display: block; color: var(--mu); font-size: 12.5px; margin-top: 3px; }
+.card.pending { border-color: rgba(243, 197, 72, .55); background: linear-gradient(180deg, rgba(243, 197, 72, .16), rgba(243, 197, 72, .05)); color: var(--tx); }
+.card.pending b { display: block; } .card.pending small { color: var(--mu); font-size: 12.5px; }
+.chat { display: flex; flex-direction: column; gap: 12px; margin: 14px 0; }
+.msg { max-width: 88%; display: flex; flex-direction: column; gap: 4px; }
+.msg.me { align-self: flex-end; align-items: flex-end; }
+.msg.bot { align-self: flex-start; }
+.msg .who { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--gold2); flex-wrap: wrap; }
+.msg .who span:not(.av-s):not(.tag) { font-weight: 500; color: var(--mu2); }
+.msg .av-s { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; background: rgba(243, 197, 72, .14); color: var(--gold); }
+.msg .av-s svg { width: 14px; height: 14px; }
+.msg .tag { font-weight: 600; font-size: 11px; padding: 2px 7px; border-radius: 999px; background: rgba(107, 147, 255, .16); color: #cfdcff; }
+.msg.t-demande .tag { background: rgba(243, 197, 72, .18); color: var(--gold2); } .msg.t-publie .tag { background: rgba(61, 220, 151, .16); color: var(--ok); } .msg.t-echec .tag { background: rgba(255, 93, 108, .16); color: var(--bad); }
+.bubble { padding: 10px 13px; border-radius: 16px; font-size: 14.5px; line-height: 1.45; word-break: break-word; background: var(--card2); border: 1px solid var(--line); }
+.msg.me .bubble { background: linear-gradient(180deg, #2c4fd8, #1f3aa8); border-color: rgba(160, 180, 255, .35); border-bottom-right-radius: 5px; }
+.msg.bot .bubble { border-bottom-left-radius: 5px; }
+.msg.t-demande .bubble { border-color: rgba(243, 197, 72, .5); }
+.msg.instant .bubble { background: rgba(255, 255, 255, .04); border-style: dashed; }
+.msg.wait .bubble { background: transparent; border-style: dashed; color: var(--mu); font-size: 13.5px; }
+.bubble code { background: rgba(0, 0, 0, .3); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+.msg .when { font-size: 11.5px; color: var(--mu2); padding: 0 4px; }
+.yn { display: flex; gap: 8px; margin-top: 4px; } .yn .btn { min-height: 40px; padding: 8px 14px; font-size: 13.5px; }
+.quick { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; scrollbar-width: none; } .quick::-webkit-scrollbar { display: none; }
+.qchip { flex: none; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line2); background: rgba(243, 197, 72, .08); color: var(--gold2); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.composer { position: sticky; bottom: calc(76px + var(--safe-b)); display: flex; gap: 8px; align-items: flex-end; padding: 8px; border-radius: 18px; background: rgba(12, 20, 64, .96); border: 1px solid var(--line2); box-shadow: var(--sh); }
+.chat-in { flex: 1; min-height: 46px; max-height: 140px; resize: vertical; border: 0; outline: 0; background: transparent; color: var(--tx); font: inherit; font-size: 15px; padding: 10px 8px; }
+.composer .send { width: 48px; min-height: 46px; padding: 0; flex: none; } .composer .send svg { width: 20px; height: 20px; }
+.btn[disabled] { opacity: .5; }
+.inp { flex: 1; min-width: 0; min-height: 44px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line2); background: #0b1236; color: var(--tx); font: inherit; }
+.nav button { font-size: 11px; padding: 7px 2px; }
