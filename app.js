@@ -435,7 +435,7 @@ function screenChat() {
     h('div', { class: 'seg' }, [['travaux', `Travaux${pend.length ? ' (' + pend.length + ')' : ''}`], ['messages', 'Messages']].map(([id, label]) => h('button', { class: (S.chatView || 'travaux') === id ? 'on' : '', onclick: () => { S.chatView = id; render(); } }, label))),
     (S.chatView || 'travaux') === 'travaux' ? travauxCard() : null,
     (S.chatView || 'travaux') === 'messages' ? h('div', { class: 'chat' }, C.length ? C.slice(-80).map(m => msgEl(m, pend)) : h('div', { class: 'empty' }, 'Aucun message pour l’instant. Écris ta première demande ci-dessous !')) : null,
-    waiting ? h('div', { class: 'msg bot wait' }, h('div', { class: 'bubble' }, `⏳ Message reçu. Le Guardian te répondra au prochain passage (vers ${hm(np)}).`)) : null,
+    waiting ? h('div', { class: 'msg bot wait' }, h('div', { class: 'bubble' }, `⏳ Message reçu, les agents sont prévenus. Réponse d’ici quelques minutes (au plus tard au passage de ${hm(np)}).`)) : null,
     answer,
     (S.chatView || 'travaux') === 'travaux' ? h('h2', {}, 'Demander un travail') : null,
     h('div', { class: 'quick' },

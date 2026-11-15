@@ -1,5 +1,5 @@
 // MYTHORIA Guardian — fonctionne hors ligne (dernières données gardées) et se met à jour tout seul.
-const CACHE = 'guardian-v7';
+const CACHE = 'guardian-v8';
 const SHELL = ['./', './index.html', './app.css', './app.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x.startsWith('guardian-') && x !== CACHE).map(x => caches.delete(x)))).then(() => self.clients.claim())); });
