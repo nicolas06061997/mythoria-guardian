@@ -59,7 +59,8 @@ const I = {
   ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M10 14L21 3M19 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h5"/></svg>',
 };
 const ic = name => h('span', { html: I[name], style: 'display:contents' });
-const AGENT_IC = { testeur: 'test', gardien: 'shield', rapporteur: 'report', chef: 'crown', reparateur: 'wrench', graphiste: 'brush', equilibreur: 'scale' };
+const AGENT_IC = { testeur: 'test', gardien: 'shield', rapporteur: 'report', chef: 'crown', reparateur: 'wrench', graphiste: 'brush', equilibreur: 'scale',
+  artiste: 'brush', ux: 'test', perf: 'report', triche: 'shield', ecrans: 'test' };
 
 const pad = n => String(n).padStart(2, '0');
 const hm = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -334,20 +335,21 @@ function screenCheck() {
       h('p', { class: 'muted small', style: 'margin:4px 0 0' }, `${lc.trigger || ''} · version ${lc.version || '?'} · durée ${Math.round((lc.durationS || 0) / 60)} min${lc.tests ? ' · tests du code ' + lc.tests[0] + '/' + lc.tests[1] : ''}`),
       lc.url ? h('a', { class: 'btn full', style: 'margin-top:10px', href: lc.url, target: '_blank', rel: 'noopener' }, ic('ext'), 'Rapport complet sur GitHub') : null),
     h('h2', {}, 'Parcours joué par le Testeur'),
-    h('div', { class: 'dev-tabs' }, devs.map(d => h('button', { class: d.id === dev.id ? 'on' : '', onclick: () => { S.dev = d.id; render(); } }, d.id === 'telephone' ? '📱 Téléphone' : d.id === 'ordinateur' ? '💻 Ordinateur' : '🛡️ Appli'))),
+    h('div', { class: 'dev-tabs' }, devs.map(d => h('button', { class: d.id === dev.id ? 'on' : '', onclick: () => { S.dev = d.id; render(); } }, DEV_NAMES[d.id] || d.label || d.id))),
     h('div', { class: 'card' }, dev.steps.map(s => h('div', { class: 'step' },
       h('div', { class: 'si ' + (s.ok ? (s.warn ? 'warn' : 'ok') : 'bad') }, s.ok ? (s.warn ? '!' : '✓') : '✕'),
       h('div', { style: 'min-width:0' }, h('b', {}, s.name), h('span', { class: 't' }, (s.ms / 1000).toFixed(1) + ' s'), s.notes && s.notes.length ? h('p', {}, s.notes.join(' ')) : null)))),
     m.loadMs ? h('p', { class: 'note' }, `Chargement mesuré : ${(m.loadMs / 1000).toFixed(1)} s. Les tests tournent sur un serveur sans carte graphique : les FPS affichés y sont bien plus bas que sur un vrai téléphone ; ils servent à repérer un effondrement.`) : null,
     shots.length ? [h('h2', {}, 'Captures d’écran', h('span', { class: 'count' }, shots.length)),
-      h('div', { class: 'shots' + (dev.id === 'ordinateur' ? ' wide' : '') }, shots.map(s => h('button', { class: 'shot', onclick: () => view(DATA + 'shots/' + s.f, s.label) },
+      h('div', { class: 'shots' + (dev.id === 'ordinateur' || dev.id === 'paysage' ? ' wide' : '') }, shots.map(s => h('button', { class: 'shot', onclick: () => view(DATA + 'shots/' + s.f, s.label) },
         h('img', { src: DATA + 'shots/' + s.f + '?t=' + Date.parse(st.shotsAt || lc.at), alt: s.label, loading: 'lazy' }), h('span', {}, s.label))))] : null,
     lc.static && lc.static.length ? [h('h2', {}, 'Vérifications du code'), h('div', { class: 'card' }, lc.static.map(c => h('div', { class: 'step' }, h('div', { class: 'si ' + (c.ok ? 'ok' : 'bad') }, c.ok ? '✓' : '✕'), h('div', {}, h('b', {}, c.name), c.ok ? null : h('p', {}, c.detail)))))] : null,
   ];
 }
 
 const SHOT_NAMES = { bienvenue: 'Bienvenue (nom)', recompense: 'Récompense', battle: 'Accueil', 'battle-histoire': 'Accueil · histoire', heroes: 'Héros', shop: 'Boutique', kingdom: 'Royaume', 'kingdom-histoire': 'Royaume · histoire', clan: 'Clan', combat: 'Combat', resultat: 'Résultat du combat', heros: 'Mode Héros' };
-const shotLabel = f => { const k = f.replace(/^[a-z]+-/, '').replace(/\.jpg$/, ''); return SHOT_NAMES[k] || k; };
+const shotLabel = f => { const k = f.replace(/^[a-z]+-/, '').replace(/\.jpg$/, ''); return SHOT_NAMES[k] || (/^erreur-/.test(k) ? 'Écran au moment de l’échec' : k); };
+const DEV_NAMES = { telephone: '📱 Téléphone', ordinateur: '💻 Ordinateur', guardian: '🛡️ Appli', fold: '📱 Fold plié', mini: '📱 Très petit', paysage: '📱 Couché', bots: '🤖 Bots' };
 
 function screenChat() {
   if (S.chat === null) { setTimeout(loadChat, 0); return [h('div', { class: 'card empty' }, 'Chargement de la discussion…')]; }

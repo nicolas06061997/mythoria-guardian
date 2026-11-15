@@ -1,0 +1,47 @@
+# MYTHORIA — Watchdog : surveille le surveillant (voir watchdog/watchdog.js).
+# Toutes les 15 minutes : le tableau de bord et le jeu répondent-ils ? Le Guardian a-t-il contrôlé le jeu récemment ?
+# Si non : notification ntfy + Discord (secret DISCORD_WEBHOOK, facultatif). Le job passe au rouge = alerte déjà envoyée.
+# Pour une surveillance toutes les 3 minutes hors de GitHub : watchdog/LISEZMOI.md (Cloudflare Worker).
+name: Watchdog
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+concurrency: { group: watchdog, cancel-in-progress: true }
+jobs:
+  watchdog:
+    name: Le Guardian est-il vivant ?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Vérifier le tableau de bord, le jeu et le Guardian
+        id: chien
+        continue-on-error: true
+        run: node watchdog/watchdog.js --dry
+      # une alerte seulement quand la panne commence (le contrôle d'avant était bon), pas toutes les 15 minutes
+      - uses: actions/cache/restore@v4
+        id: avant
+        with: { path: .watchdog-etat, key: watchdog-etat-panne-${{ github.run_id }}, restore-keys: watchdog-etat-panne- }
+      - name: Envoyer l'alerte (début de panne)
+        if: steps.chien.outcome == 'failure' && steps.avant.outputs.cache-matched-key == ''
+        env: { DISCORD_WEBHOOK: '${{ secrets.DISCORD_WEBHOOK }}' }
+        run: node watchdog/watchdog.js || true
+      - name: Retenir que la panne est signalée
+        if: steps.chien.outcome == 'failure' && steps.avant.outputs.cache-matched-key == ''
+        run: date > .watchdog-etat
+      - uses: actions/cache/save@v4
+        if: steps.chien.outcome == 'failure' && steps.avant.outputs.cache-matched-key == ''
+        with: { path: .watchdog-etat, key: watchdog-etat-panne-${{ github.run_id }} }
+      - name: Panne terminée → oublier
+        if: steps.chien.outcome == 'success' && steps.avant.outputs.cache-matched-key != ''
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: gh cache delete "${{ steps.avant.outputs.cache-matched-key }}" --repo "${{ github.repository }}" || true
+      - name: Résultat
+        if: steps.chien.outcome == 'failure'
+        run: echo "::error::Panne détectée par le Watchdog (voir l'étape de vérification)."; exit 1
