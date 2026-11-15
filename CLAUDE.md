@@ -28,3 +28,9 @@ L'utilisateur parle français et n'est pas développeur : réponses courtes, en 
 - Watchdog (`watchdog/watchdog.js`, indépendant du Guardian) : tableau de bord + jeu en 200 OK, `state.json` de moins de
   150 min ; alerte ntfy + Discord (secret `DISCORD_WEBHOOK`). Lancé par `.github/workflows/watchdog.yml` (15 min) ;
   version 3 min sur Cloudflare Worker : `watchdog/LISEZMOI.md`. `node watchdog/watchdog.js --dry` = essai sans alerte.
+- Onglet « Discuter » = « Travaux » (par défaut) + « Messages ». `travaux()` suit chaque demande `D-…` grâce au code cité
+  dans les messages : attente → accepte (oui) → test (`envoi`) → fait (`publie`) ; refuse (non) ; echec. Oui/Non sur place.
+- « Commander » (`openRunSheet`, clé GitHub avec Issues + Actions + Contents + Workflows en écriture) : lancer un contrôle /
+  le rapport (`workflow_dispatch` de guardian.yml), publier une modification refusée par GitHub (événement `bloque` avec
+  `branch` → `POST /merges`), revenir à la version précédente (action `retour arriere`, si `state.lastPublication.prev`).
+  Actions sensibles = bouton à deux appuis (`confirmBtn`).

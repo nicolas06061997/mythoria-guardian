@@ -186,6 +186,72 @@ function pendingRequests() {
   return C.filter(m => m.type === 'demande').map(m => ({ ...m, code: (m.text.match(/D-\d{8}-\d+/) || [])[0] }))
     .filter(d => d.code && !C.some(x => x.me && Date.parse(x.at) > Date.parse(d.at) && new RegExp('\\b(oui|non)\\b[^\\n]*' + d.code, 'i').test(x.text)));
 }
+// Travaux = demandes « D-… » des agents, suivies de bout en bout grâce au code cité dans leurs messages :
+// attente (pas de réponse) → accepte (oui) → test (envoi) → fait (publie) ; refuse (non) ; echec.
+function travaux() {
+  const C = S.chat || [], out = [];
+  for (const m of C) {
+    if (m.type !== 'demande') continue;
+    const code = (m.text.match(/D-\d{8}-\d+/) || [])[0];
+    if (!code || out.some(t => t.code === code)) continue;
+    const has = new RegExp(code + '(?!\\d)'), yn = new RegExp('\\b(oui|non)\\b[^\\n]*' + code + '(?!\\d)', 'i');
+    const after = C.filter(x => Date.parse(x.at) > Date.parse(m.at) && has.test(x.text));
+    const ans = after.filter(x => x.me).map(x => (x.text.match(yn) || [])[1]).filter(Boolean).pop();
+    const ag = after.filter(x => !x.me && ['envoi', 'publie', 'echec'].includes(x.type)).pop();
+    const state = !ans ? 'attente' : /non/i.test(ans) ? 'refuse' : !ag ? 'accepte' : ag.type === 'envoi' ? 'test' : ag.type === 'publie' ? 'fait' : 'echec';
+    const line = m.text.split('\n').map(l => l.replace(/\*\*/g, '').replace(has, '').replace(/\s*Réponds\b.*$/i, '').replace(/^[\s—–:·-]+/, '').trim()).find(l => l.length > 3) || code;
+    out.push({ code, title: line.length > 90 ? line.slice(0, 88) + '…' : line, state, at: m.at, last: (ag || m).at, msg: m, note: ag && ag.type !== 'envoi' ? ag.text : null });
+  }
+  return out;
+}
+const T_STATE = { attente: ['Attend ta réponse', 'warn'], accepte: ['Accepté · à faire', 'info'], test: ['En test', 'info'], fait: ['En ligne', 'ok'], echec: ['Pas réussi', 'bad'], refuse: ['Refusé', 'mu'] };
+function travauxCard() {
+  const T = travaux(); if (!T.length) return h('div', { class: 'card empty' }, 'Aucun travail proposé pour l’instant. Les agents en proposeront au prochain passage, ou écris ta demande ci-dessous.');
+  const row = t => { const [label, cls] = T_STATE[t.state], open = S.openT === t.code;
+    return h('div', { class: 'trav' },
+      h('button', { class: 'trav-h', onclick: () => { S.openT = open ? null : t.code; render(); } },
+        h('span', { class: 'trav-t' }, t.title), h('span', { class: 'chip-s ' + cls }, label)),
+      h('div', { class: 'trav-m' }, `${AGENT_NAMES[t.msg.agent] || 'Guardian'} · ${t.code} · ${rel(t.last)}`),
+      open ? h('div', { class: 'trav-d' }, rich(t.msg.text), t.note ? [h('hr'), rich(t.note)] : null) : null,
+      t.state === 'attente' ? h('div', { class: 'yn' }, h('button', { class: 'btn gold', onclick: () => sendMessage(`oui ${t.code}`) }, '✅ Oui, fais-le'), h('button', { class: 'btn', onclick: () => sendMessage(`non ${t.code}`) }, '✋ Non')) : null); };
+  const grp = (title, states, max) => { const l = T.filter(t => states.includes(t.state)).sort((a, b) => Date.parse(b.last) - Date.parse(a.last)); return l.length ? [h('h2', {}, title, h('span', { class: 'count' }, l.length)), h('div', { class: 'card' }, l.slice(0, max).map(row))] : null; };
+  return [grp('À décider', ['attente'], 20), grp('En cours', ['test', 'accepte', 'echec'], 20), grp('Terminés', ['fait'], 8), grp('Refusés', ['refuse'], 5)];
+}
+
+// ---------- actions directes (clé GitHub de l'utilisateur) ----------
+const API_REPO = `https://api.github.com/repos/${OWNER}/${NAME}`;
+async function gh(method, path, body) {
+  const r = await fetch(API_REPO + path, { method, headers: ghHeaders(!!body), body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+  return r.status === 204 ? null : r.json().catch(() => null);
+}
+const keyHelp = e => [401, 403, 404].includes(e.status) ? 'ta clé GitHub n’a pas ce droit : recrée-la (Réglages → Gérer ma clé)' : e.status === 409 ? 'GitHub refuse : la modification doit d’abord être mise à jour par les agents' : e.message;
+async function runAction(action, label) {
+  if (!token()) { openTokenSheet(); return false; }
+  try { await gh('POST', '/actions/workflows/guardian.yml/dispatches', { ref: 'main', inputs: { action } }); toast(label + ' : demandé ✓'); setTimeout(loadLive, 6000); return true; }
+  catch (e) { toast('Impossible — ' + keyHelp(e)); return false; }
+}
+// modifications contrôlées mais que GitHub interdit au Guardian de publier seul (ex. ses propres règles)
+async function pendingPublications() {
+  const evs = ((S.data && S.data.events) || []).filter(e => e.type === 'bloque' && e.branch && Date.now() - Date.parse(e.at) < 14 * 864e5);
+  const out = [];
+  for (const e of evs) {
+    if (out.some(x => x.branch === e.branch) || !/^[\w./-]+$/.test(e.branch)) continue;
+    try { const c = await gh('GET', `/compare/main...${encodeURIComponent(e.branch)}`); if (c && c.ahead_by > 0) out.push({ branch: e.branch, at: e.at, detail: e.detail, ready: c.behind_by === 0, files: (c.files || []).length }); } catch (x) { /* branche supprimée ou déjà publiée */ }
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+async function publishBranch(p) {
+  try { await gh('POST', '/merges', { base: 'main', head: p.branch, commit_message: `Publication validée par le propriétaire depuis l'appli Guardian (${p.branch})` }); toast('Publié ✓ Le Guardian contrôle le jeu en ligne.'); setTimeout(loadLive, 6000); return true; }
+  catch (e) { toast('Publication impossible — ' + keyHelp(e)); return false; }
+}
+// bouton à deux appuis : le premier demande confirmation
+function confirmBtn(cls, label, confirm, fn) {
+  let armed = false; const b = h('button', { class: cls, onclick: async () => { if (!armed) { armed = true; b.textContent = confirm; setTimeout(() => { armed = false; b.textContent = label; }, 6000); return; } b.disabled = true; b.textContent = 'Envoi…'; const ok = await fn(); b.textContent = ok ? 'Fait ✓' : label; b.disabled = !!ok; armed = false; } }, label);
+  return b;
+}
+
 function nextPass() { const d = new Date(); d.setSeconds(0, 0); if (d.getMinutes() >= AGENT_PASS_MIN) d.setHours(d.getHours() + 1); d.setMinutes(AGENT_PASS_MIN); return d; }
 
 // texte simple → éléments (gras **x**, `code`, liens) sans jamais interpréter de HTML
@@ -249,7 +315,7 @@ function statusCard(st) {
       st.lastPublication ? h('span', {}, 'Dernière publication : ', h('b', {}, rel(st.lastPublication.at))) : null),
     h('div', { class: 'actions' },
       h('a', { class: 'btn gold', href: GAME, target: '_blank', rel: 'noopener' }, ic('play'), 'Ouvrir le jeu'),
-      h('button', { class: 'btn', onclick: openRunSheet }, ic('bolt'), 'Lancer un contrôle')));
+      h('button', { class: 'btn', onclick: openRunSheet }, ic('bolt'), 'Commander')));
 }
 
 function screenHome() {
@@ -364,12 +430,14 @@ function screenChat() {
   const answer = h('div');
   const showAnswer = (q, kind) => answer.replaceChildren(h('div', { class: 'msg bot instant' }, h('div', { class: 'who' }, '⚡ Réponse immédiate', h('span', {}, ' · tirée des données réelles du Guardian, sans IA')), h('div', { class: 'bubble' }, h('b', {}, q), h('br'), rich(instantAnswer(kind)))));
   return [
-    h('div', { class: 'card chat-info' }, ic('chat'), h('div', {}, h('b', {}, 'Les agents Claude passent toutes les heures'),
-      h('small', {}, `Prochain passage vers ${hm(np)}. Ils lisent tes messages, répondent ici, réparent les bugs sans risque et te demandent la permission pour le reste.`))),
-    pend.length ? h('div', { class: 'card pending' }, h('b', {}, `🔔 ${plural(pend.length, 'demande')} en attente de ta réponse`), h('small', {}, 'Réponds avec les boutons Oui / Non sous chaque demande.')) : null,
-    h('div', { class: 'chat' }, C.length ? C.slice(-80).map(m => msgEl(m, pend)) : h('div', { class: 'empty' }, 'Aucun message pour l’instant. Écris ta première demande ci-dessous !'),
-      waiting ? h('div', { class: 'msg bot wait' }, h('div', { class: 'bubble' }, `⏳ Message reçu. Le Guardian te répondra au prochain passage (vers ${hm(np)}).`)) : null),
+    h('div', { class: 'card chat-info' }, ic('chat'), h('div', {}, h('b', {}, 'Les agents travaillent en continu'),
+      h('small', {}, `Ils enchaînent les travaux que tu as acceptés, un par passage (prochain vers ${hm(np)}), et te préviennent à chaque travail terminé. Rien ne change dans le jeu sans ton « Oui » (sauf la correction des bugs).`))),
+    h('div', { class: 'seg' }, [['travaux', `Travaux${pend.length ? ' (' + pend.length + ')' : ''}`], ['messages', 'Messages']].map(([id, label]) => h('button', { class: (S.chatView || 'travaux') === id ? 'on' : '', onclick: () => { S.chatView = id; render(); } }, label))),
+    (S.chatView || 'travaux') === 'travaux' ? travauxCard() : null,
+    (S.chatView || 'travaux') === 'messages' ? h('div', { class: 'chat' }, C.length ? C.slice(-80).map(m => msgEl(m, pend)) : h('div', { class: 'empty' }, 'Aucun message pour l’instant. Écris ta première demande ci-dessous !')) : null,
+    waiting ? h('div', { class: 'msg bot wait' }, h('div', { class: 'bubble' }, `⏳ Message reçu. Le Guardian te répondra au prochain passage (vers ${hm(np)}).`)) : null,
     answer,
+    (S.chatView || 'travaux') === 'travaux' ? h('h2', {}, 'Demander un travail') : null,
     h('div', { class: 'quick' },
       quick('Comment va MYTHORIA ?', () => showAnswer('Comment va MYTHORIA ?', 'etat')),
       quick('Quels bugs as-tu trouvés ?', () => showAnswer('Quels bugs as-tu trouvés ?', 'bugs')),
@@ -394,8 +462,8 @@ function msgEl(m, pend) {
     h('div', { class: 'when' }, rel(m.at)));
 }
 function openTokenSheet() {
-  const desc = encodeURIComponent('Appli MYTHORIA Guardian : écrire dans la discussion');
-  const link = `https://github.com/settings/personal-access-tokens/new?name=${encodeURIComponent('MYTHORIA Guardian appli')}&description=${desc}&target_name=${OWNER}&expires_in=366&issues=write`;
+  const desc = encodeURIComponent('Appli MYTHORIA Guardian : discussion, contrôles, publication');
+  const link = `https://github.com/settings/personal-access-tokens/new?name=${encodeURIComponent('MYTHORIA Guardian appli')}&description=${desc}&target_name=${OWNER}&expires_in=366&issues=write&actions=write&contents=write&workflows=write`;
   const inp = h('input', { class: 'inp', type: 'password', placeholder: 'Colle ta clé ici (github_pat_…)', autocomplete: 'off' });
   const msg = h('p', { class: 'small' });
   let close = null;
@@ -405,12 +473,12 @@ function openTokenSheet() {
     try { const login = await checkToken(t); store.set('token', t); S.me = login; msg.textContent = '✅ Clé valable (' + login + ').'; toast('Clé enregistrée sur ce téléphone ✓'); setTimeout(() => { close && close(); render(); loadChat(); }, 700); }
     catch (e) { msg.textContent = '❌ ' + e.message; }
   };
-  close = sheet(h('h3', {}, '🔑 Ta clé pour écrire au Guardian'),
-    h('p', {}, 'Elle permet à l’appli de poster tes messages dans la discussion du Guardian, et rien d’autre. Elle reste uniquement sur ce téléphone.'),
+  close = sheet(h('h3', {}, '🔑 Ta clé pour commander le Guardian'),
+    h('p', {}, 'Elle permet à l’appli d’écrire aux agents, de lancer un contrôle, de publier une modification en attente et de revenir en arrière — uniquement sur le dépôt du jeu. Elle reste sur ce téléphone : ne la donne à personne.'),
     h('ol', {},
       h('li', {}, 'Touche « Ouvrir GitHub » (connecte-toi si besoin).'),
       h('li', {}, 'Vérifie : ', h('b', {}, 'Repository access → Only select repositories → mythoria-game'), '.'),
-      h('li', {}, 'Dans ', h('b', {}, 'Permissions → Repository permissions'), ', mets ', h('b', {}, 'Issues : Read and write'), ' (le reste ne change pas).'),
+      h('li', {}, 'Dans ', h('b', {}, 'Permissions → Repository permissions'), ', mets sur ', h('b', {}, 'Read and write'), ' : ', h('b', {}, 'Issues'), ' (discussion), ', h('b', {}, 'Actions'), ' (lancer un contrôle), ', h('b', {}, 'Contents'), ' et ', h('b', {}, 'Workflows'), ' (publier). Le lien les coche déjà.'),
       h('li', {}, 'Touche ', h('b', {}, 'Generate token'), ', puis copie la clé (elle commence par github_pat_).'),
       h('li', {}, 'Reviens ici, colle-la et touche « Enregistrer ».')),
     h('a', { class: 'btn full', href: link, target: '_blank', rel: 'noopener' }, ic('ext'), 'Ouvrir GitHub'),
@@ -463,10 +531,28 @@ function view(src, label) {
   document.body.append(v);
 }
 function openRunSheet() {
-  sheet(h('h3', {}, 'Lancer un contrôle maintenant'),
-    h('p', {}, 'Le jeu est déjà contrôlé automatiquement toutes les heures et après chaque modification. Pour en lancer un tout de suite :'),
-    h('ol', {}, h('li', {}, 'Touche le bouton ci-dessous (page GitHub du Guardian, connecte-toi si besoin).'), h('li', {}, 'Touche « Run workflow », choisis « controle complet », puis le bouton vert « Run workflow ».'), h('li', {}, 'Reviens ici : « Contrôle en cours » s’affiche, puis les résultats dans 10 à 15 minutes.')),
-    h('a', { class: 'btn gold full', href: ACTIONS, target: '_blank', rel: 'noopener' }, ic('ext'), 'Ouvrir la page du Guardian sur GitHub'));
+  const st = (S.data && S.data.state) || {}, lp = st.lastPublication;
+  if (!token()) return sheet(h('h3', {}, 'Commander le Guardian'),
+    h('p', {}, 'Pour lancer un contrôle, publier ou revenir en arrière directement d’ici, l’appli a besoin de ta clé GitHub (une seule fois).'),
+    h('button', { class: 'btn gold full', onclick: openTokenSheet }, ic('key'), 'Ajouter ma clé GitHub'),
+    h('a', { class: 'btn full', style: 'margin-top:8px', href: ACTIONS, target: '_blank', rel: 'noopener' }, ic('ext'), 'Ou passer par GitHub'));
+  const pubs = h('div', {}, h('p', { class: 'muted small' }, 'Recherche…'));
+  let close = null;
+  const act = (action, label, text) => h('button', { class: 'list-btn', onclick: async () => { if (await runAction(action, label)) close && close(); } }, h('span', {}, h('b', {}, label), h('br'), h('small', { class: 'muted' }, text)), h('span', { class: 'muted' }, '›'));
+  close = sheet(h('h3', {}, 'Commander le Guardian'),
+    h('p', {}, 'Le jeu est déjà contrôlé toutes les heures et après chaque modification. Tu peux aussi agir tout de suite :'),
+    act('controle complet', 'Contrôle complet', 'Tous les écrans, un combat, les 6 bots · 15 à 20 min'),
+    act('controle rapide', 'Contrôle rapide', 'Sans combat ni Mode Héros · environ 8 min'),
+    act('rapport du jour', 'Rapport du jour', 'Écrit et envoie le rapport maintenant'),
+    h('h3', { style: 'margin-top:20px' }, 'Publications en attente de ton accord'), pubs,
+    h('h3', { style: 'margin-top:20px' }, 'Revenir à la version précédente'),
+    lp && lp.prev ? [h('p', {}, `Retire la version ${lp.version} (publiée ${rel(lp.at)}) et remet celle d’avant. À utiliser si la dernière mise à jour ne te plaît pas.`),
+      confirmBtn('btn full', '↩️ Revenir à la version précédente', 'Appuie encore pour confirmer le retour arrière', () => runAction('retour arriere', 'Retour arrière'))]
+      : h('p', { class: 'muted small' }, 'Disponible après la prochaine publication (le Guardian note alors la version d’avant).'));
+  pendingPublications().then(L => pubs.replaceChildren(...(L.length ? L.map(p => h('div', { class: 'trav' },
+    h('div', { class: 'trav-t' }, 'Modification contrôlée, pas encore en ligne'), h('div', { class: 'trav-m' }, `${p.branch} · ${rel(p.at)} · ${plural(p.files, 'fichier')}`), h('div', { class: 'trav-d' }, p.detail),
+    p.ready ? confirmBtn('btn gold full', '🚀 Publier cette modification', 'Appuie encore pour confirmer la publication', () => publishBranch(p)) : h('p', { class: 'muted small' }, 'Pas publiable telle quelle : les agents doivent d’abord la mettre à jour.')))
+    : [h('p', { class: 'muted small' }, 'Aucune. Le Guardian publie seul tout ce qui passe ses contrôles.')])));
 }
 async function openReports() {
   const idx = (await getJSON('reports/index.json').catch(() => null)) || [];
@@ -489,7 +575,7 @@ function openSettings() {
     standalone() ? h('p', {}, '✅ L’application est installée et s’ouvre en plein écran.') : h('button', { class: 'btn gold full', onclick: install }, ic('dl'), 'Installer MYTHORIA Guardian'),
     h('div', { class: 'actions' }, h('a', { class: 'btn', href: GAME, target: '_blank', rel: 'noopener' }, ic('play'), 'Le jeu'), h('a', { class: 'btn', href: ACTIONS, target: '_blank', rel: 'noopener' }, ic('ext'), 'GitHub')),
     h('h3', { style: 'margin-top:20px' }, 'Ce que fait le Guardian aujourd’hui'),
-    h('p', {}, 'Actif : contrôle complet du jeu toutes les heures (téléphone + ordinateur), publication protégée, retour arrière automatique, historique, rapport quotidien, notifications. Agents Claude (chef, réparateur, graphiste, équilibreur) : un passage toutes les heures et une grande session chaque nuit ; ils répondent dans l’onglet Discuter. Tout est gratuit : GitHub (dépôt public) et ntfy ; les agents Claude utilisent ton abonnement Max existant.'),
+    h('p', {}, 'Actif : contrôle complet du jeu toutes les heures (téléphone + ordinateur), publication protégée, retour arrière automatique, historique, rapport quotidien, notifications. 6 bots de contrôle (couleurs, lisibilité, performances, équilibrage, anti-triche, écrans extrêmes) et un Watchdog qui surveille le Guardian. Agents Claude (chef, réparateur, graphiste, équilibreur) : ils enchaînent les travaux que tu acceptes dans l’onglet Discuter, un passage par heure et une grande session chaque nuit. Tout est gratuit : GitHub (dépôt public) et ntfy ; les agents Claude utilisent ton abonnement Max existant.'),
     h('p', { class: 'note' }, `Données : ${DATA.replace('https://', '')} · mises à jour ${S.at ? rel(new Date(S.at).toISOString()) : '—'}`));
 }
 
