@@ -27,7 +27,10 @@ jobs:
       # une alerte seulement quand la panne commence (le contrôle d'avant était bon), pas toutes les 15 minutes
       - uses: actions/cache/restore@v4
         id: avant
-        with: { path: .watchdog-etat, key: watchdog-etat-panne-${{ github.run_id }}, restore-keys: watchdog-etat-panne- }
+        with:
+          path: .watchdog-etat
+          key: watchdog-etat-panne-${{ github.run_id }}
+          restore-keys: watchdog-etat-panne-
       - name: Envoyer l'alerte (début de panne)
         if: steps.chien.outcome == 'failure' && steps.avant.outputs.cache-matched-key == ''
         env: { DISCORD_WEBHOOK: '${{ secrets.DISCORD_WEBHOOK }}' }
@@ -37,7 +40,9 @@ jobs:
         run: date > .watchdog-etat
       - uses: actions/cache/save@v4
         if: steps.chien.outcome == 'failure' && steps.avant.outputs.cache-matched-key == ''
-        with: { path: .watchdog-etat, key: watchdog-etat-panne-${{ github.run_id }} }
+        with:
+          path: .watchdog-etat
+          key: watchdog-etat-panne-${{ github.run_id }}
       - name: Panne terminée → oublier
         if: steps.chien.outcome == 'success' && steps.avant.outputs.cache-matched-key != ''
         env: { GH_TOKEN: '${{ github.token }}' }
