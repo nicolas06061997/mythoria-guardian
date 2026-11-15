@@ -248,3 +248,7 @@ body:has(.sheet-back) #inst, body:has(.viewer) #inst, body:has(.composer) #inst,
 #upd div { flex: 1; min-width: 0; } #upd b { display: block; font-size: 14px; } #upd small { display: block; color: var(--mu); font-size: 12px; }
 #upd .btn { flex: none; min-height: 40px; padding: 8px 14px; }
 body:has(#upd) #inst { display: none; }
+.maj { padding: 10px 0; border-bottom: 1px solid var(--line); } .maj:last-child { border-bottom: 0; } .maj summary { cursor: pointer; font-size: 14.5px; }
+.maj ul { margin: 8px 0 2px; padding-left: 18px; color: var(--mu); font-size: 13.5px; } .maj li { margin: 5px 0; } .maj li b { color: var(--tx); }
+.news .actions { display: flex; gap: 8px; } .news .actions .btn { flex: 1; }
+.list-btn svg { width: 18px; height: 18px; vertical-align: -3px; flex: none; }

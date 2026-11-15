@@ -87,20 +87,51 @@ const store = { get(k, d) { try { const v = localStorage.getItem('guardian_' + k
 
 // ---------- nouveautés de l'appli (affichées une fois sur l'accueil après chaque mise à jour) ----------
 // À chaque publication : changer APP_VERSION et la liste (3 à 5 lignes, où regarder dans l'appli).
-const APP_VERSION = '15/11 · n°4'; // = « v » de version.json (sinon le bandeau de mise à jour s'affiche à tort)
-const APP_NEWS = [
-  ['Mises à jour', 'un bandeau « Nouvelle mise à jour disponible » apparaît en bas de l’appli dès que j’envoie une nouveauté : un appui et c’est installé.'],
-  ['Accueil', 'le bouton « Commander » lance un contrôle, publie une modification en attente ou revient à la version précédente.'],
-  ['Discuter', 'nouvelle liste « Travaux » : ce que les agents proposent, avec les boutons Oui / Non et l’avancement de chaque travail.'],
-  ['Problèmes', 'quand un contrôle échoue, la photo de l’écran au moment de l’échec s’affiche sous le problème.'],
-  ['Contrôle', 'de nouveaux onglets (Fold plié, très petit écran, téléphone couché, bots) apparaîtront dès que les 6 bots seront publiés dans le jeu.'],
-  ['En coulisses', 'un Watchdog vérifie toutes les 15 minutes que le Guardian est vivant et te prévient sinon.'],
+// APP_HISTORY : la plus récente en premier. Ajouter une entrée à chaque publication visible (elle sert aussi de carte
+// « Nouveau dans l'appli » et alimente « Dernières mises à jour » dans l'onglet Historique).
+const APP_HISTORY = [
+  { v: '15/11 · n°5', at: '2026-11-15T14:45:00Z', items: [
+    ['Historique', 'nouvelle rubrique « Dernières mises à jour » : ce qui a changé dans l’appli Guardian et dans le jeu, du plus récent au plus ancien.'],
+  ] },
+  { v: '15/11 · n°4', at: '2026-11-15T14:35:00Z', items: [
+    ['Mises à jour', 'un bandeau « Nouvelle mise à jour disponible » apparaît en bas de l’appli dès qu’une nouveauté est envoyée : un appui et c’est installé.'],
+    ['Accueil', 'carte « Nouveau dans l’appli » après chaque mise à jour.'],
+  ] },
+  { v: '15/11 · n°3', at: '2026-11-15T13:56:00Z', items: [
+    ['Accueil', 'le bouton « Commander » lance un contrôle, publie une modification en attente ou revient à la version précédente.'],
+    ['Discuter', 'liste « Travaux » : ce que les agents proposent, avec les boutons Oui / Non et l’avancement de chaque travail.'],
+    ['Problèmes', 'quand un contrôle échoue, la photo de l’écran au moment de l’échec s’affiche sous le problème.'],
+    ['Contrôle', 'nouveaux onglets (Fold plié, très petit écran, téléphone couché, bots), visibles dès que les 6 bots sont publiés dans le jeu.'],
+    ['En coulisses', 'un Watchdog vérifie toutes les 15 minutes que le Guardian est vivant et te prévient sinon.'],
+  ] },
 ];
+const APP_VERSION = APP_HISTORY[0].v; // = « v » de version.json (sinon le bandeau de mise à jour s'affiche à tort)
+const APP_NEWS = APP_HISTORY[0].items;
 function newsCard() {
   if (store.get('seenVersion', '') === APP_VERSION) return null;
   return h('div', { class: 'card news' }, h('b', {}, '✨ Nouveau dans l’appli (' + APP_VERSION + ')'),
     h('ul', {}, APP_NEWS.map(([ou, quoi]) => h('li', {}, h('b', {}, ou + ' : '), quoi))),
-    h('button', { class: 'btn full', onclick: () => { store.set('seenVersion', APP_VERSION); render(); } }, 'J’ai vu'));
+    h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: () => { store.set('seenVersion', APP_VERSION); S.tab = 'historique'; S.majView = 'appli'; render(); scrollTo(0, 0); } }, 'Tout l’historique'),
+      h('button', { class: 'btn gold', onclick: () => { store.set('seenVersion', APP_VERSION); render(); } }, 'J’ai vu')));
+}
+// Dernières mises à jour : l'appli (APP_HISTORY) et le jeu (publications réellement enregistrées par le Guardian).
+function updatesCard() {
+  const view = S.majView || 'jeu', D = S.data;
+  const seg = h('div', { class: 'seg' }, [['jeu', 'Le jeu'], ['appli', 'L’appli Guardian']].map(([id, label]) => h('button', { class: view === id ? 'on' : '', onclick: () => { S.majView = id; render(); } }, label)));
+  let body;
+  if (view === 'appli') body = h('div', { class: 'card' }, APP_HISTORY.map((u, i) => h('details', { class: 'maj', open: i === 0 },
+    h('summary', {}, h('b', {}, 'Version ' + u.v), h('span', { class: 'muted' }, i === 0 ? ' · installée' : ' · ' + rel(u.at))),
+    h('ul', {}, u.items.map(([ou, quoi]) => h('li', {}, h('b', {}, ou + ' : '), quoi))))));
+  else {
+    const pubs = ((D && D.events) || []).filter(e => e.type === 'publication' || e.type === 'retour').slice(0, 10);
+    const live = D && D.state && D.state.liveVersion, notes = S.gameNotes && S.gameNotes.v === live ? S.gameNotes.notes : null;
+    if (live && S.gameNotes === undefined) { S.gameNotes = null; fetch(GAME + 'version.json?t=' + Date.now()).then(r => r.ok ? r.json() : null).then(j => { if (j && j.v) { S.gameNotes = { v: j.v, notes: String(j.notes || '') }; render(); } }).catch(() => {}); }
+    body = h('div', { class: 'card' },
+      live ? h('div', { class: 'trav' }, h('div', { class: 'trav-t' }, 'En ligne : version ' + live), notes ? h('div', { class: 'trav-d' }, notes) : null) : null,
+      pubs.length ? pubs.map(e => h('div', { class: 'trav' }, h('div', { class: 'trav-t' }, (e.type === 'retour' ? '↩️ ' : '🚀 ') + e.title), h('div', { class: 'trav-m' }, `${dayLabel(e.at)} à ${hm(new Date(e.at))}`), e.detail ? h('div', { class: 'trav-d' }, e.detail) : null))
+        : h('p', { class: 'muted small' }, 'Aucune publication enregistrée pour l’instant.'));
+  }
+  return [h('h2', {}, 'Dernières mises à jour'), seg, body];
 }
 
 // ---------- mise à jour de l'appli (comme les jeux : bandeau + bouton « Mettre à jour ») ----------
@@ -529,6 +560,7 @@ function screenHistory() {
   const groups = []; let cur = null;
   for (const e of evs.slice(0, 200)) { const k = new Date(e.at).toDateString(); if (!cur || cur.k !== k) groups.push(cur = { k, at: e.at, list: [] }); cur.list.push(e); }
   return [
+    updatesCard(),
     D.state.lastReport ? h('button', { class: 'list-btn', onclick: openReports }, h('span', {}, ic('report'), ' Rapports quotidiens'), h('span', { class: 'muted' }, '›')) : null,
     h('h2', {}, 'Journal'),
     h('div', { class: 'toggle' }, h('span', {}, 'Afficher aussi les contrôles réussis (toutes les heures)'), h('button', { class: 'sw' + (S.quiet ? ' on' : ''), 'aria-label': 'afficher les contrôles réussis', onclick: () => { S.quiet = !S.quiet; store.set('quiet', S.quiet); render(); } })),
