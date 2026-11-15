@@ -36,4 +36,5 @@ L'utilisateur parle français et n'est pas développeur : réponses courtes, en 
   Actions sensibles = bouton à deux appuis (`confirmBtn`).
 - Publication (accord du propriétaire, 15/11) : dès qu'une modification de cette appli est testée, la pousser directement
   sur `main` (= en ligne), sans attendre un « publie ». À chaque publication visible : changer `APP_VERSION` et `APP_NEWS`
-  (carte « Nouveau dans l'appli » de l'accueil) et `CACHE` dans `sw.js`. Le jeu, lui, passe toujours par le Guardian.
+  (carte « Nouveau dans l'appli » de l'accueil), **la même valeur dans `v` de `version.json`** (+ `notes`) et `CACHE` dans `sw.js`.
+  `checkUpdate()` relit `version.json` (3 min + retour sur l'appli) : version différente → bandeau `#upd` « Mettre à jour ». Le jeu, lui, passe toujours par le Guardian.

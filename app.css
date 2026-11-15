@@ -244,3 +244,7 @@ body:has(.sheet-back) #inst, body:has(.viewer) #inst, body:has(.composer) #inst,
 .chip-s.bad { color: var(--bad); border-color: rgba(255, 93, 108, .45); } .chip-s.info { color: var(--gold2); border-color: var(--line2); }
 .list-btn small { font-weight: 400; }
 .news { border-color: var(--line2); margin-bottom: 12px; } .news ul { margin: 8px 0 12px; padding-left: 18px; color: var(--mu); font-size: 13.5px; } .news li { margin: 5px 0; } .news li b { color: var(--tx); }
+#upd { position: fixed; left: 10px; right: 10px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 60; display: flex; align-items: center; gap: 10px; max-width: 540px; margin: 0 auto; padding: 10px 12px; border-radius: 14px; background: var(--card2); border: 1px solid var(--gold2); box-shadow: 0 8px 28px rgba(0, 0, 0, .55); }
+#upd div { flex: 1; min-width: 0; } #upd b { display: block; font-size: 14px; } #upd small { display: block; color: var(--mu); font-size: 12px; }
+#upd .btn { flex: none; min-height: 40px; padding: 8px 14px; }
+body:has(#upd) #inst { display: none; }

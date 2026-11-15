@@ -87,8 +87,9 @@ const store = { get(k, d) { try { const v = localStorage.getItem('guardian_' + k
 
 // ---------- nouveautés de l'appli (affichées une fois sur l'accueil après chaque mise à jour) ----------
 // À chaque publication : changer APP_VERSION et la liste (3 à 5 lignes, où regarder dans l'appli).
-const APP_VERSION = '15/11 · n°3';
+const APP_VERSION = '15/11 · n°4'; // = « v » de version.json (sinon le bandeau de mise à jour s'affiche à tort)
 const APP_NEWS = [
+  ['Mises à jour', 'un bandeau « Nouvelle mise à jour disponible » apparaît en bas de l’appli dès que j’envoie une nouveauté : un appui et c’est installé.'],
   ['Accueil', 'le bouton « Commander » lance un contrôle, publie une modification en attente ou revient à la version précédente.'],
   ['Discuter', 'nouvelle liste « Travaux » : ce que les agents proposent, avec les boutons Oui / Non et l’avancement de chaque travail.'],
   ['Problèmes', 'quand un contrôle échoue, la photo de l’écran au moment de l’échec s’affiche sous le problème.'],
@@ -101,6 +102,24 @@ function newsCard() {
     h('ul', {}, APP_NEWS.map(([ou, quoi]) => h('li', {}, h('b', {}, ou + ' : '), quoi))),
     h('button', { class: 'btn full', onclick: () => { store.set('seenVersion', APP_VERSION); render(); } }, 'J’ai vu'));
 }
+
+// ---------- mise à jour de l'appli (comme les jeux : bandeau + bouton « Mettre à jour ») ----------
+// version.json est relu toutes les 3 min et au retour sur l'appli ; s'il annonce une autre version que celle chargée,
+// le bandeau #upd s'affiche. On ne recharge jamais tout seul (l'utilisateur est peut-être en train d'écrire).
+async function checkUpdate() {
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const j = await r.json(); if (!j || !j.v || j.v === APP_VERSION || document.getElementById('upd')) return;
+    const bar = h('div', { id: 'upd' }, h('div', {}, h('b', {}, '✨ Nouvelle mise à jour disponible'), h('small', {}, String(j.notes || '').slice(0, 140))),
+      h('button', { class: 'btn gold', onclick: async () => { bar.querySelector('button').textContent = 'Installation…';
+        try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch (e) {}
+        location.reload(); } }, 'Mettre à jour'));
+    document.body.append(bar);
+  } catch (e) { /* hors ligne : on réessaiera */ }
+}
+setInterval(checkUpdate, 180000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
+setTimeout(checkUpdate, 4000);
 
 // ---------- données ----------
 const S = { chat: null, chatErr: null, sending: false, me: null, tab: store.get('tab', 'accueil'), dev: 'telephone', quiet: store.get('quiet', false), data: null, offline: false, loading: false, live: null, report: null, error: null, at: 0 };
