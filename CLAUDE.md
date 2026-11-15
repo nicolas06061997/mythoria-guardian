@@ -21,3 +21,5 @@ L'utilisateur parle français et n'est pas développeur : réponses courtes, en 
   marqueur `<!-- guardian agent=… type=… -->` (règlement : `guardian/AGENTS.md` de mythoria-game) ; demandes `D-AAAAMMJJ-n`
   avec boutons Oui/Non ; « réponses immédiates » calculées depuis les données (sans IA, signalées comme telles).
 - Ne jamais redessiner pendant la saisie (`render()` attend le `blur` de `.chat-in`).
+- Preuve visuelle : un problème de `problems.json` peut porter `shot` (nom d'un fichier de `shots/`, capture prise au moment
+  de l'échec) → vignette `.proof` dans l'onglet « Problèmes » (`proofShot`, ouvre `view`). Sans `shot` ou image absente : rien.

@@ -311,7 +311,16 @@ function probCard(p) {
   return h('div', { class: 'card' }, h('div', { class: 'prob' + (done ? ' done' : p.level !== 'bloquant' ? ' warn' : '') }, h('div', { class: 'dot' }),
     h('div', { style: 'min-width:0' }, h('b', {}, p.title), h('div', { class: 'where' }, (p.level === 'bloquant' ? 'Bloquant' : 'À surveiller') + ' · ' + p.where), h('div', { class: 'det' }, p.detail),
       h('div', { class: 'meta' }, done ? `Détecté ${rel(p.firstSeen)} · résolu ${rel(p.resolvedAt)}` : `Détecté ${rel(p.firstSeen)} · revu ${plural(p.seenCount, 'fois', 'fois')} · dernier ${rel(p.lastSeen)}`,
-        p.url ? [' · ', h('a', { href: p.url, target: '_blank', rel: 'noopener' }, 'détails')] : null))));
+        p.url ? [' · ', h('a', { href: p.url, target: '_blank', rel: 'noopener' }, 'détails')] : null),
+      proofShot(p))));
+}
+// Preuve visuelle : capture prise par le Guardian au moment de l'échec (champ « shot » du problème = fichier de shots/).
+function proofShot(p) {
+  if (typeof p.shot !== 'string' || !/^[\w.-]+\.(jpg|png|webp)$/i.test(p.shot)) return null;
+  const src = DATA + 'shots/' + p.shot + '?t=' + (Date.parse(p.lastSeen) || 0), label = 'Écran au moment du problème';
+  const b = h('button', { class: 'proof', onclick: () => view(src, label) },
+    h('img', { src, alt: label, loading: 'lazy', onerror: () => b.remove() }), h('span', {}, ic('ext'), label));
+  return b;
 }
 
 function screenCheck() {
