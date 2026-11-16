@@ -90,6 +90,9 @@ const store = { get(k, d) { try { const v = localStorage.getItem('guardian_' + k
 // APP_HISTORY : la plus récente en premier. Ajouter une entrée à chaque publication visible (elle sert aussi de carte
 // « Nouveau dans l'appli » et alimente « Dernières mises à jour » dans l'onglet Historique).
 const APP_HISTORY = [
+  { v: '16/11 · n°9', at: '2026-11-16T04:40:00Z', items: [
+    ['Clé GitHub', 'si ta clé n’a pas le droit de publier ou de lancer un contrôle, l’appli ouvre directement l’écran pour en créer une nouvelle, avec les étapes.'],
+  ] },
   { v: '16/11 · n°8', at: '2026-11-16T03:45:00Z', items: [
     ['Accueil', 'quand une modification attend ton accord pour être mise en ligne, une carte « 🔔 attend ton accord » s’affiche en haut avec le bouton pour publier (plus besoin d’ouvrir « Commander »).'],
     ['Commander', 'tout est visible même sans clé GitHub ; la clé n’est demandée qu’au moment d’agir.'],
@@ -307,11 +310,12 @@ async function gh(method, path, body) {
   if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
   return r.status === 204 ? null : r.json().catch(() => null);
 }
+const keyLacks = e => [401, 403, 404].includes(e.status);
 const keyHelp = e => [401, 403, 404].includes(e.status) ? 'ta clé GitHub n’a pas ce droit : recrée-la (Réglages → Gérer ma clé)' : e.status === 409 ? 'GitHub refuse : la modification doit d’abord être mise à jour par les agents' : e.message;
 async function runAction(action, label) {
   if (!token()) { openTokenSheet(); return false; }
   try { await gh('POST', '/actions/workflows/guardian.yml/dispatches', { ref: 'main', inputs: { action } }); toast(label + ' : demandé ✓'); setTimeout(loadLive, 6000); return true; }
-  catch (e) { toast('Impossible — ' + keyHelp(e)); return false; }
+  catch (e) { toast('Impossible — ' + keyHelp(e)); if (keyLacks(e)) openTokenSheet(true); return false; }
 }
 // modifications contrôlées mais que GitHub interdit au Guardian de publier seul (ex. ses propres règles)
 async function pendingPublications() {
@@ -344,7 +348,7 @@ function pubCard(p) {
 async function publishBranch(p) {
   if (!token()) { openTokenSheet(); return false; }
   try { await gh('POST', '/merges', { base: 'main', head: p.branch, commit_message: `Publication validée par le propriétaire depuis l'appli Guardian (${p.branch})` }); toast('Publié ✓ Le Guardian contrôle le jeu en ligne.'); S.pubs = (S.pubs || []).filter(x => x.branch !== p.branch); setTimeout(loadLive, 6000); setTimeout(() => { refreshPubs(true); render(); }, 1500); return true; }
-  catch (e) { toast('Publication impossible — ' + keyHelp(e)); return false; }
+  catch (e) { toast('Publication impossible — ' + keyHelp(e)); if (keyLacks(e)) openTokenSheet(true); return false; }
 }
 // bouton à deux appuis : le premier demande confirmation
 function confirmBtn(cls, label, confirm, fn) {
@@ -568,7 +572,7 @@ function msgEl(m, pend) {
     pd ? h('div', { class: 'yn' }, h('button', { class: 'btn gold', onclick: () => sendMessage(`oui ${pd.code}`) }, '✅ Oui, fais-le'), h('button', { class: 'btn', onclick: () => sendMessage(`non ${pd.code}`) }, '✋ Non')) : null,
     h('div', { class: 'when' }, rel(m.at)));
 }
-function openTokenSheet() {
+function openTokenSheet(lacks) {
   const desc = encodeURIComponent('Appli MYTHORIA Guardian : discussion, contrôles, publication');
   const link = `https://github.com/settings/personal-access-tokens/new?name=${encodeURIComponent('MYTHORIA Guardian appli')}&description=${desc}&target_name=${OWNER}&expires_in=366&issues=write&actions=write&contents=write&workflows=write`;
   const inp = h('input', { class: 'inp', type: 'password', placeholder: 'Colle ta clé ici (github_pat_…)', autocomplete: 'off' });
@@ -581,6 +585,7 @@ function openTokenSheet() {
     catch (e) { msg.textContent = '❌ ' + e.message; }
   };
   close = sheet(h('h3', {}, '🔑 Ta clé pour commander le Guardian'),
+    lacks === true ? h('div', { class: 'card pending', style: 'margin-bottom:10px' }, h('b', {}, 'Ta clé actuelle ne permet que d’écrire des messages.'), h('small', {}, 'Pour publier ou lancer un contrôle, il faut en créer une nouvelle avec 4 droits (2 minutes). L’ancienne sera remplacée.')) : null,
     h('p', {}, 'Elle permet à l’appli d’écrire aux agents, de lancer un contrôle, de publier une modification en attente et de revenir en arrière — uniquement sur le dépôt du jeu. Elle reste sur ce téléphone : ne la donne à personne.'),
     h('ol', {},
       h('li', {}, 'Touche « Ouvrir GitHub » (connecte-toi si besoin).'),
