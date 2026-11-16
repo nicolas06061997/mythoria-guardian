@@ -90,6 +90,9 @@ const store = { get(k, d) { try { const v = localStorage.getItem('guardian_' + k
 // APP_HISTORY : la plus récente en premier. Ajouter une entrée à chaque publication visible (elle sert aussi de carte
 // « Nouveau dans l'appli » et alimente « Dernières mises à jour » dans l'onglet Historique).
 const APP_HISTORY = [
+  { v: '16/11 · n°8', at: '2026-11-16T03:45:00Z', items: [
+    ['Accueil', 'quand une modification attend ton accord pour être mise en ligne, une carte « 🔔 attend ton accord » s’affiche en haut avec le bouton pour publier (plus besoin d’ouvrir « Commander »).'],
+    ['Commander', 'tout est visible même sans clé GitHub ; la clé n’est demandée qu’au moment d’agir.'],
   { v: '16/11 · n°7', at: '2026-11-16T03:20:00Z', items: [
     ['Guardian allégé', 'les agents Claude passent maintenant 3 fois par jour (8 h 42, 13 h 42, 19 h 42) au lieu de toutes les heures : beaucoup moins de consommation de ton abonnement.'],
     ['Rien d’autre ne change', 'le contrôle automatique du jeu toutes les heures, les bots, le Watchdog et la session de nuit continuent (ils ne consomment pas ton abonnement, sauf la session de nuit).'],
@@ -179,6 +182,7 @@ async function loadData() {
     if (state && state.lastReport && (!S.report || S.report.date !== state.lastReport)) S.report = await getJSON(`reports/${state.lastReport}.json`).catch(() => null);
     S.offline = false; S.error = null; S.at = Date.now();
     store.set('cache', { data: S.data, report: S.report, at: S.at });
+    refreshPubs();
   } catch (e) {
     const c = store.get('cache', null);
     if (c) { S.data = c.data; S.report = c.report; S.at = c.at; }
@@ -314,13 +318,31 @@ async function pendingPublications() {
   const out = [];
   for (const e of evs) {
     if (out.some(x => x.branch === e.branch) || !/^[\w./-]+$/.test(e.branch)) continue;
-    try { const c = await gh('GET', `/compare/main...${encodeURIComponent(e.branch)}`); if (c && c.ahead_by > 0) out.push({ branch: e.branch, at: e.at, detail: e.detail, ready: c.behind_by === 0, files: (c.files || []).length }); } catch (x) { /* branche supprimée ou déjà publiée */ }
+    try { const r = await fetch(`${API_REPO}/compare/main...${encodeURIComponent(e.branch)}`, { headers: { accept: 'application/vnd.github+json' } }); // lecture publique : pas besoin de clé
+      const c = r.ok ? await r.json() : null; if (c && c.ahead_by > 0) out.push({ branch: e.branch, at: e.at, detail: e.detail, ready: c.behind_by === 0, files: (c.files || []).length }); } catch (x) { /* branche supprimée ou déjà publiée */ }
     if (out.length >= 5) break;
   }
   return out;
 }
+// Liste gardée en mémoire et rafraîchie quand le journal change (ou toutes les 10 min) : l'accueil l'affiche sans clé.
+let pubsKey = '', pubsAt = 0;
+async function refreshPubs(force) {
+  const evs = ((S.data && S.data.events) || []).filter(e => e.type === 'bloque' && e.branch), key = evs.length ? evs[0].at + evs[0].branch + ((S.data.state || {}).liveVersion || '') : 'aucune';
+  if (!force && key === pubsKey && Date.now() - pubsAt < 10 * 60e3) return;
+  pubsKey = key; pubsAt = Date.now();
+  const L = evs.length ? await pendingPublications() : [];
+  const same = JSON.stringify(L) === JSON.stringify(S.pubs || []); S.pubs = L; if (!same) render();
+}
+function pubCard(p) {
+  return h('div', { class: 'trav' },
+    h('div', { class: 'trav-t' }, 'Modification contrôlée, pas encore en ligne'), h('div', { class: 'trav-m' }, `${p.branch} · ${rel(p.at)} · ${plural(p.files, 'fichier')}`), h('div', { class: 'trav-d' }, p.detail),
+    !p.ready ? h('p', { class: 'muted small' }, 'Pas publiable telle quelle : les agents doivent d’abord la mettre à jour.')
+      : token() ? confirmBtn('btn gold full', '🚀 Oui, publier cette modification', 'Appuie encore pour confirmer la publication', () => publishBranch(p))
+        : h('button', { class: 'btn gold full', onclick: openTokenSheet }, ic('key'), 'Ajouter ma clé GitHub pour publier'));
+}
 async function publishBranch(p) {
-  try { await gh('POST', '/merges', { base: 'main', head: p.branch, commit_message: `Publication validée par le propriétaire depuis l'appli Guardian (${p.branch})` }); toast('Publié ✓ Le Guardian contrôle le jeu en ligne.'); setTimeout(loadLive, 6000); return true; }
+  if (!token()) { openTokenSheet(); return false; }
+  try { await gh('POST', '/merges', { base: 'main', head: p.branch, commit_message: `Publication validée par le propriétaire depuis l'appli Guardian (${p.branch})` }); toast('Publié ✓ Le Guardian contrôle le jeu en ligne.'); S.pubs = (S.pubs || []).filter(x => x.branch !== p.branch); setTimeout(loadLive, 6000); setTimeout(() => { refreshPubs(true); render(); }, 1500); return true; }
   catch (e) { toast('Publication impossible — ' + keyHelp(e)); return false; }
 }
 // bouton à deux appuis : le premier demande confirmation
@@ -402,7 +424,9 @@ function statusCard(st) {
 
 function screenHome() {
   const D = S.data, st = D && D.state;
-  const kids = [newsCard(), statusCard(st)];
+  const waitPubs = (S.pubs || []).filter(p => p.ready);
+  const kids = [newsCard(), waitPubs.length ? h('div', { class: 'card pending accord' }, h('b', {}, `🔔 ${plural(waitPubs.length, 'modification')} ${waitPubs.length > 1 ? 'attendent' : 'attend'} ton accord pour être mise${waitPubs.length > 1 ? 's' : ''} en ligne`),
+    h('small', {}, 'Le Guardian l’a contrôlée (tout est vert) mais n’a pas le droit de la publier seul.'), waitPubs.map(pubCard)) : null, statusCard(st)];
   if (!standalone()) kids.unshift(h('button', { class: 'inst-card', onclick: install }, h('span', { class: 'inst-ic', html: I.dl }), h('span', {}, h('b', {}, installEvt ? 'Installer l’application (1 appui)' : 'Installer l’application'), h('small', {}, 'Elle s’ouvrira en plein écran depuis ton écran d’accueil, comme tes autres applis.'))));
   if (st) {
     const c = st.counters || {}, open = D.problems.filter(p => p.status === 'ouvert' && p.level === 'bloquant').length;
@@ -615,15 +639,12 @@ function view(src, label) {
 }
 function openRunSheet() {
   const st = (S.data && S.data.state) || {}, lp = st.lastPublication;
-  if (!token()) return sheet(h('h3', {}, 'Commander le Guardian'),
-    h('p', {}, 'Pour lancer un contrôle, publier ou revenir en arrière directement d’ici, l’appli a besoin de ta clé GitHub (une seule fois).'),
-    h('button', { class: 'btn gold full', onclick: openTokenSheet }, ic('key'), 'Ajouter ma clé GitHub'),
-    h('a', { class: 'btn full', style: 'margin-top:8px', href: ACTIONS, target: '_blank', rel: 'noopener' }, ic('ext'), 'Ou passer par GitHub'));
   const pubs = h('div', {}, h('p', { class: 'muted small' }, 'Recherche…'));
   let close = null;
   const act = (action, label, text) => h('button', { class: 'list-btn', onclick: async () => { if (await runAction(action, label)) close && close(); } }, h('span', {}, h('b', {}, label), h('br'), h('small', { class: 'muted' }, text)), h('span', { class: 'muted' }, '›'));
   close = sheet(h('h3', {}, 'Commander le Guardian'),
     h('p', {}, 'Le jeu est déjà contrôlé toutes les heures et après chaque modification. Tu peux aussi agir tout de suite :'),
+    token() ? null : h('button', { class: 'btn gold full', style: 'margin-bottom:6px', onclick: openTokenSheet }, ic('key'), 'D’abord : ajouter ma clé GitHub'),
     act('controle complet', 'Contrôle complet', 'Tous les écrans, un combat, les 6 bots · 15 à 20 min'),
     act('controle rapide', 'Contrôle rapide', 'Sans combat ni Mode Héros · environ 8 min'),
     act('rapport du jour', 'Rapport du jour', 'Écrit et envoie le rapport maintenant'),
@@ -632,10 +653,7 @@ function openRunSheet() {
     lp && lp.prev ? [h('p', {}, `Retire la version ${lp.version} (publiée ${rel(lp.at)}) et remet celle d’avant. À utiliser si la dernière mise à jour ne te plaît pas.`),
       confirmBtn('btn full', '↩️ Revenir à la version précédente', 'Appuie encore pour confirmer le retour arrière', () => runAction('retour arriere', 'Retour arrière'))]
       : h('p', { class: 'muted small' }, 'Disponible après la prochaine publication (le Guardian note alors la version d’avant).'));
-  pendingPublications().then(L => pubs.replaceChildren(...(L.length ? L.map(p => h('div', { class: 'trav' },
-    h('div', { class: 'trav-t' }, 'Modification contrôlée, pas encore en ligne'), h('div', { class: 'trav-m' }, `${p.branch} · ${rel(p.at)} · ${plural(p.files, 'fichier')}`), h('div', { class: 'trav-d' }, p.detail),
-    p.ready ? confirmBtn('btn gold full', '🚀 Publier cette modification', 'Appuie encore pour confirmer la publication', () => publishBranch(p)) : h('p', { class: 'muted small' }, 'Pas publiable telle quelle : les agents doivent d’abord la mettre à jour.')))
-    : [h('p', { class: 'muted small' }, 'Aucune. Le Guardian publie seul tout ce qui passe ses contrôles.')])));
+  pendingPublications().then(L => { S.pubs = L; pubs.replaceChildren(...(L.length ? L.map(pubCard) : [h('p', { class: 'muted small' }, 'Aucune. Le Guardian publie seul tout ce qui passe ses contrôles.')])); });
 }
 async function openReports() {
   const idx = (await getJSON('reports/index.json').catch(() => null)) || [];

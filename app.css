@@ -252,3 +252,4 @@ body:has(#upd) #inst { display: none; }
 .maj ul { margin: 8px 0 2px; padding-left: 18px; color: var(--mu); font-size: 13.5px; } .maj li { margin: 5px 0; } .maj li b { color: var(--tx); }
 .news .actions { display: flex; gap: 8px; } .news .actions .btn { flex: 1; }
 .list-btn svg { width: 18px; height: 18px; vertical-align: -3px; flex: none; }
+.accord { margin-bottom: 12px; } .accord > small { display: block; margin: 4px 0 8px; } .accord .trav { border-bottom: 0; }
