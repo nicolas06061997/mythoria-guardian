@@ -93,6 +93,7 @@ const APP_HISTORY = [
   { v: '16/11 · n°8', at: '2026-11-16T03:45:00Z', items: [
     ['Accueil', 'quand une modification attend ton accord pour être mise en ligne, une carte « 🔔 attend ton accord » s’affiche en haut avec le bouton pour publier (plus besoin d’ouvrir « Commander »).'],
     ['Commander', 'tout est visible même sans clé GitHub ; la clé n’est demandée qu’au moment d’agir.'],
+  ] },
   { v: '16/11 · n°7', at: '2026-11-16T03:20:00Z', items: [
     ['Guardian allégé', 'les agents Claude passent maintenant 3 fois par jour (8 h 42, 13 h 42, 19 h 42) au lieu de toutes les heures : beaucoup moins de consommation de ton abonnement.'],
     ['Rien d’autre ne change', 'le contrôle automatique du jeu toutes les heures, les bots, le Watchdog et la session de nuit continuent (ils ne consomment pas ton abonnement, sauf la session de nuit).'],
