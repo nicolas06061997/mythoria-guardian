@@ -17,7 +17,7 @@ const API_RUNS = `https://api.github.com/repos/${OWNER}/${NAME}/actions/runs?per
 const CHAT_ISSUE = 1;
 const API_ISSUE = `https://api.github.com/repos/${OWNER}/${NAME}/issues/${CHAT_ISSUE}`;
 const CHAT_URL = `${REPO}/issues/${CHAT_ISSUE}`;
-const AGENT_PASS_MIN = 42; // les agents passent chaque heure vers HH:42 (tâche planifiée)
+const AGENT_PASS_MIN = 42, AGENT_PASS_HOURS = [8, 13, 19]; // les agents passent 3 fois par jour (8 h 42, 13 h 42, 19 h 42, heure de Bruxelles) pour économiser l'abonnement Claude
 
 // ---------- petits outils ----------
 function h(tag, attrs, ...kids) {
@@ -90,6 +90,11 @@ const store = { get(k, d) { try { const v = localStorage.getItem('guardian_' + k
 // APP_HISTORY : la plus récente en premier. Ajouter une entrée à chaque publication visible (elle sert aussi de carte
 // « Nouveau dans l'appli » et alimente « Dernières mises à jour » dans l'onglet Historique).
 const APP_HISTORY = [
+  { v: '16/11 · n°7', at: '2026-11-16T03:20:00Z', items: [
+    ['Guardian allégé', 'les agents Claude passent maintenant 3 fois par jour (8 h 42, 13 h 42, 19 h 42) au lieu de toutes les heures : beaucoup moins de consommation de ton abonnement.'],
+    ['Rien d’autre ne change', 'le contrôle automatique du jeu toutes les heures, les bots, le Watchdog et la session de nuit continuent (ils ne consomment pas ton abonnement, sauf la session de nuit).'],
+    ['Discuter', 'l’heure du « prochain passage » affichée est la bonne.'],
+  ] },
   { v: '16/11 · n°6', at: '2026-11-16T03:00:00Z', items: [
     ['Les 6 bots sont en service', 'ils tournent à chaque contrôle du jeu depuis cette nuit : couleurs, lisibilité, performances, équilibrage, anti-triche, écrans extrêmes.'],
     ['Accueil', 'l’équipe affiche les 6 nouveaux bots et ce que chacun a trouvé au dernier contrôle.'],
@@ -324,7 +329,12 @@ function confirmBtn(cls, label, confirm, fn) {
   return b;
 }
 
-function nextPass() { const d = new Date(); d.setSeconds(0, 0); if (d.getMinutes() >= AGENT_PASS_MIN) d.setHours(d.getHours() + 1); d.setMinutes(AGENT_PASS_MIN); return d; }
+function nextPass() {
+  const d = new Date(); d.setSeconds(0, 0); if (d.getMinutes() >= AGENT_PASS_MIN) d.setHours(d.getHours() + 1); d.setMinutes(AGENT_PASS_MIN);
+  const bxl = x => { try { return +new Intl.DateTimeFormat('fr-BE', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Europe/Brussels' }).formatToParts(x).find(p => p.type === 'hour').value; } catch (e) { return x.getHours(); } };
+  for (let i = 0; i < 30 && !AGENT_PASS_HOURS.includes(bxl(d)); i++) d.setHours(d.getHours() + 1);
+  return d;
+}
 
 // texte simple → éléments (gras **x**, `code`, liens) sans jamais interpréter de HTML
 function rich(text) {
@@ -417,7 +427,7 @@ function agentRow(a) {
   if (['chef', 'reparateur', 'graphiste', 'equilibreur'].includes(a.id)) {
     const mine = (S.chat || []).filter(m => !m.me && (m.agent === a.id));
     const last = mine[mine.length - 1];
-    a = { ...a, soon: false, last: last ? last.at : null, lastText: last ? (last.text.split('\n')[0].replace(/\*\*|`/g, '').slice(0, 90)) : 'Agent Claude : passe toutes les heures, rien à signaler pour l’instant' };
+    a = { ...a, soon: false, last: last ? last.at : null, lastText: last ? (last.text.split('\n')[0].replace(/\*\*|`/g, '').slice(0, 90)) : 'Agent Claude : passe 3 fois par jour, rien à signaler pour l’instant' };
   }
   const recent = a.last && Date.now() - Date.parse(a.last) < 3 * 3600e3;
   const working = a.id === 'testeur' && S.live;
@@ -648,7 +658,7 @@ function openSettings() {
     standalone() ? h('p', {}, '✅ L’application est installée et s’ouvre en plein écran.') : h('button', { class: 'btn gold full', onclick: install }, ic('dl'), 'Installer MYTHORIA Guardian'),
     h('div', { class: 'actions' }, h('a', { class: 'btn', href: GAME, target: '_blank', rel: 'noopener' }, ic('play'), 'Le jeu'), h('a', { class: 'btn', href: ACTIONS, target: '_blank', rel: 'noopener' }, ic('ext'), 'GitHub')),
     h('h3', { style: 'margin-top:20px' }, 'Ce que fait le Guardian aujourd’hui'),
-    h('p', {}, 'Actif : contrôle complet du jeu toutes les heures (téléphone + ordinateur), publication protégée, retour arrière automatique, historique, rapport quotidien, notifications. 6 bots de contrôle (couleurs, lisibilité, performances, équilibrage, anti-triche, écrans extrêmes) et un Watchdog qui surveille le Guardian. Agents Claude (chef, réparateur, graphiste, équilibreur) : ils enchaînent les travaux que tu acceptes dans l’onglet Discuter, un passage par heure et une grande session chaque nuit. Tout est gratuit : GitHub (dépôt public) et ntfy ; les agents Claude utilisent ton abonnement Max existant.'),
+    h('p', {}, 'Actif : contrôle complet du jeu toutes les heures (téléphone + ordinateur), publication protégée, retour arrière automatique, historique, rapport quotidien, notifications. 6 bots de contrôle (couleurs, lisibilité, performances, équilibrage, anti-triche, écrans extrêmes) et un Watchdog qui surveille le Guardian. Agents Claude (chef, réparateur, graphiste, équilibreur) : ils enchaînent les travaux que tu acceptes dans l’onglet Discuter, 3 passages par jour (8 h 42, 13 h 42, 19 h 42) et une grande session chaque nuit. Tout est gratuit : GitHub (dépôt public) et ntfy ; les agents Claude utilisent ton abonnement Max existant.'),
     h('p', { class: 'note' }, `Version de l’appli : ${APP_VERSION} · Données : ${DATA.replace('https://', '')} · mises à jour ${S.at ? rel(new Date(S.at).toISOString()) : '—'}`));
 }
 

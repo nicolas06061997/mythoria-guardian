@@ -38,3 +38,5 @@ L'utilisateur parle français et n'est pas développeur : réponses courtes, en 
   sur `main` (= en ligne), sans attendre un « publie ». À chaque publication visible : changer `APP_VERSION` et `APP_NEWS`
   (carte « Nouveau dans l'appli » de l'accueil), **la même valeur dans `v` de `version.json`** (+ `notes`) et `CACHE` dans `sw.js`.
   `checkUpdate()` relit `version.json` (3 min + retour sur l'appli) : version différente → bandeau `#upd` « Mettre à jour ». Le jeu, lui, passe toujours par le Guardian.
+- Économie d'abonnement (16/11) : passage des agents Claude = 3 fois par jour (8 h 42, 13 h 42, 19 h 42 Bruxelles, `AGENT_PASS_HOURS`
+  dans `app.js` = la tâche planifiée) + session de nuit 3 h 07. Ne pas remettre un passage toutes les heures sans demande du propriétaire.
