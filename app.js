@@ -90,6 +90,11 @@ const store = { get(k, d) { try { const v = localStorage.getItem('guardian_' + k
 // APP_HISTORY : la plus récente en premier. Ajouter une entrée à chaque publication visible (elle sert aussi de carte
 // « Nouveau dans l'appli » et alimente « Dernières mises à jour » dans l'onglet Historique).
 const APP_HISTORY = [
+  { v: '16/11 · n°6', at: '2026-11-16T03:00:00Z', items: [
+    ['Les 6 bots sont en service', 'ils tournent à chaque contrôle du jeu depuis cette nuit : couleurs, lisibilité, performances, équilibrage, anti-triche, écrans extrêmes.'],
+    ['Accueil', 'l’équipe affiche les 6 nouveaux bots et ce que chacun a trouvé au dernier contrôle.'],
+    ['Contrôle', 'nouveaux onglets Fold plié, Très petit, Couché et Bots, avec leurs captures d’écran.'],
+  ] },
   { v: '15/11 · n°5', at: '2026-11-15T14:45:00Z', items: [
     ['Historique', 'nouvelle rubrique « Dernières mises à jour » : ce qui a changé dans l’appli Guardian et dans le jeu, du plus récent au plus ancien.'],
   ] },
