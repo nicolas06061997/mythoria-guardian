@@ -90,6 +90,9 @@ const store = { get(k, d) { try { const v = localStorage.getItem('guardian_' + k
 // APP_HISTORY : la plus récente en premier. Ajouter une entrée à chaque publication visible (elle sert aussi de carte
 // « Nouveau dans l'appli » et alimente « Dernières mises à jour » dans l'onglet Historique).
 const APP_HISTORY = [
+  { v: '20/11 · n°10', at: '2026-11-20T07:00:00Z', items: [
+    ['Clé GitHub', 'le lien ne déclenche plus l’erreur « 366 jours » de GitHub, et les étapes donnent aussi les noms en français.'],
+  ] },
   { v: '16/11 · n°9', at: '2026-11-16T04:40:00Z', items: [
     ['Clé GitHub', 'si ta clé n’a pas le droit de publier ou de lancer un contrôle, l’appli ouvre directement l’écran pour en créer une nouvelle, avec les étapes.'],
   ] },
@@ -574,7 +577,7 @@ function msgEl(m, pend) {
 }
 function openTokenSheet(lacks) {
   const desc = encodeURIComponent('Appli MYTHORIA Guardian : discussion, contrôles, publication');
-  const link = `https://github.com/settings/personal-access-tokens/new?name=${encodeURIComponent('MYTHORIA Guardian appli')}&description=${desc}&target_name=${OWNER}&expires_in=366&issues=write&actions=write&contents=write&workflows=write`;
+  const link = `https://github.com/settings/personal-access-tokens/new?name=${encodeURIComponent('MYTHORIA Guardian appli')}&description=${desc}&target_name=${OWNER}&expires_in=365&issues=write&actions=write&contents=write&workflows=write`;
   const inp = h('input', { class: 'inp', type: 'password', placeholder: 'Colle ta clé ici (github_pat_…)', autocomplete: 'off' });
   const msg = h('p', { class: 'small' });
   let close = null;
@@ -589,9 +592,9 @@ function openTokenSheet(lacks) {
     h('p', {}, 'Elle permet à l’appli d’écrire aux agents, de lancer un contrôle, de publier une modification en attente et de revenir en arrière — uniquement sur le dépôt du jeu. Elle reste sur ce téléphone : ne la donne à personne.'),
     h('ol', {},
       h('li', {}, 'Touche « Ouvrir GitHub » (connecte-toi si besoin).'),
-      h('li', {}, 'Vérifie : ', h('b', {}, 'Repository access → Only select repositories → mythoria-game'), '.'),
-      h('li', {}, 'Dans ', h('b', {}, 'Permissions → Repository permissions'), ', mets sur ', h('b', {}, 'Read and write'), ' : ', h('b', {}, 'Issues'), ' (discussion), ', h('b', {}, 'Actions'), ' (lancer un contrôle), ', h('b', {}, 'Contents'), ' et ', h('b', {}, 'Workflows'), ' (publier). Le lien les coche déjà.'),
-      h('li', {}, 'Touche ', h('b', {}, 'Generate token'), ', puis copie la clé (elle commence par github_pat_).'),
+      h('li', {}, 'Dans ', h('b', {}, 'Accès au dépôt'), ' (Repository access), choisis ', h('b', {}, 'Seuls les dépôts sélectionnés'), ' (Only select repositories) puis ', h('b', {}, 'mythoria-game'), '.'),
+      h('li', {}, 'Dans ', h('b', {}, 'Autorisations'), ' (Permissions), vérifie ', h('b', {}, 'Read and write'), ' pour ', h('b', {}, 'Issues'), ', ', h('b', {}, 'Actions'), ', ', h('b', {}, 'Contents'), ' et ', h('b', {}, 'Workflows'), '. Le lien les coche déjà.'),
+      h('li', {}, 'Touche ', h('b', {}, 'Générer un jeton'), ' (Generate token), puis copie la clé (elle commence par github_pat_).'),
       h('li', {}, 'Reviens ici, colle-la et touche « Enregistrer ».')),
     h('a', { class: 'btn full', href: link, target: '_blank', rel: 'noopener' }, ic('ext'), 'Ouvrir GitHub'),
     h('div', { style: 'display:flex;gap:8px;margin-top:12px' }, inp, h('button', { class: 'btn gold', onclick: save }, 'Enregistrer')), msg,
