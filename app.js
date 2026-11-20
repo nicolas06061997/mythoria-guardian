@@ -90,8 +90,8 @@ const store = { get(k, d) { try { const v = localStorage.getItem('guardian_' + k
 // APP_HISTORY : la plus récente en premier. Ajouter une entrée à chaque publication visible (elle sert aussi de carte
 // « Nouveau dans l'appli » et alimente « Dernières mises à jour » dans l'onglet Historique).
 const APP_HISTORY = [
-  { v: '20/11 · n°10', at: '2026-11-20T07:00:00Z', items: [
-    ['Clé GitHub', 'le lien ne déclenche plus l’erreur « 366 jours » de GitHub, et les étapes donnent aussi les noms en français.'],
+  { v: '20/11 · n°11', at: '2026-11-20T07:00:00Z', items: [
+    ['Clé GitHub', 'le lien ne déclenche plus l’erreur « 366 jours » de GitHub, les étapes donnent aussi les noms en français, et le nom de la clé porte la date (plus d’erreur « nom déjà pris »).'],
   ] },
   { v: '16/11 · n°9', at: '2026-11-16T04:40:00Z', items: [
     ['Clé GitHub', 'si ta clé n’a pas le droit de publier ou de lancer un contrôle, l’appli ouvre directement l’écran pour en créer une nouvelle, avec les étapes.'],
@@ -577,7 +577,7 @@ function msgEl(m, pend) {
 }
 function openTokenSheet(lacks) {
   const desc = encodeURIComponent('Appli MYTHORIA Guardian : discussion, contrôles, publication');
-  const link = `https://github.com/settings/personal-access-tokens/new?name=${encodeURIComponent('MYTHORIA Guardian appli')}&description=${desc}&target_name=${OWNER}&expires_in=365&issues=write&actions=write&contents=write&workflows=write`;
+  const link = `https://github.com/settings/personal-access-tokens/new?name=${encodeURIComponent('MYTHORIA Guardian appli ' + new Date().toISOString().slice(0, 10))}&description=${desc}&target_name=${OWNER}&expires_in=365&issues=write&actions=write&contents=write&workflows=write`;
   const inp = h('input', { class: 'inp', type: 'password', placeholder: 'Colle ta clé ici (github_pat_…)', autocomplete: 'off' });
   const msg = h('p', { class: 'small' });
   let close = null;
